@@ -1,0 +1,9 @@
+{
+  "name": "Creators Door",
+  "short_name": "Door",
+  "start_url": "./",
+  "display": "standalone",
+  "background_color": "#06080d",
+  "theme_color": "#070a10",
+  "description": "A governed VSR entry experience for creators, products and participation."
+}
