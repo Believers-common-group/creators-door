@@ -1,0 +1,11 @@
+{
+  "name": "creators-door",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "python3 -m http.server 4173",
+    "check": "node --check src/main.js && node --check src/data.js && node --check sw.js",
+    "build": "node scripts/build.mjs"
+  }
+}
