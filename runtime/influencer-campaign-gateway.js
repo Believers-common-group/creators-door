@@ -149,8 +149,16 @@ export function createSyntheticCampaignGateway({
         decision, intent, at: intent.requestedAt
       });
       assertDecision(decision, verification, intent, now);
+      // Reservations are material state: exceptions now require reconciliation.
+      stage = 'RESERVATION_ATTEMPTED';
       const reservation = await river.reserve({ intent, decision });
       assertReservation(reservation, decision, context);
+      // Re-check Warden at the execution boundary, including expiry/revocation.
+      const executeAt = timestamp(clock(), 'execution_clock');
+      const executionVerification = await warden.verifyDecision({
+        decision, intent, at: new Date(executeAt).toISOString()
+      });
+      assertDecision(decision, executionVerification, intent, executeAt);
       stage = 'EXECUTION_ATTEMPTED';
       const execution = await synnergyze.execute({ intent, decision, reservation });
       assertExecution(execution, reservation, context);
@@ -171,11 +179,11 @@ export function createSyntheticCampaignGateway({
       // Do not retry after partial execution. Never leak policy details,
       // private identity data or adapter exception text to the caller.
       return Object.freeze({
-        state: stage === 'EXECUTION_ATTEMPTED' ? 'EXCEPTION' : 'DENIED',
+        state: stage !== 'BEFORE_EXECUTION' ? 'EXCEPTION' : 'DENIED',
         synthetic: true,
         requestRef: context.requestRef,
         reasonCode: error instanceof CampaignGateError ? error.code : 'adapter_failed',
-        requiresReconciliation: stage === 'EXECUTION_ATTEMPTED'
+        requiresReconciliation: stage !== 'BEFORE_EXECUTION'
       });
     }
   }
