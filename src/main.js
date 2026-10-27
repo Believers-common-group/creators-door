@@ -1,5 +1,6 @@
 import './styles.css';
 import { doors, modules, activity } from './data.js';
+import { campaigns, renderInfluencersDoor } from './influencers.js';
 
 const app = document.querySelector('#app');
 const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -9,6 +10,7 @@ const state = {
   phase: 'idle',
   hold: 0,
   role: 'Contributor',
+  influencerCampaignId: campaigns[0].campaignId,
   evidence: []
 };
 
@@ -47,7 +49,7 @@ function shell(content, active = 'doors', immersive = false) {
   return `<main class="app-shell ${immersive ? 'immersive' : ''}">
     <header class="topbar glass">
       <button class="icon-button" data-action="${back ? 'back' : 'brand'}" aria-label="${back ? 'Go back' : 'VSR home'}">${back ? icon('back') : '<span class="brand">V</span>'}</button>
-      <div class="topbar-title"><small>VIRTUAL SILK ROAD</small><strong>Creators Door</strong></div>
+      <div class="topbar-title"><small>VIRTUAL SILK ROAD</small><strong>${state.route === 'influencers' ? 'Influencers Door' : 'Creators Door'}</strong></div>
       <button class="icon-button" aria-label="Notifications">${icon('bell')}<i></i></button>
     </header>
     <section class="screen">${content}</section>
@@ -72,6 +74,7 @@ function home() {
     </section>
     <div class="section-title"><div><small>EXPLORE</small><h2>Active Doors</h2></div><button>Filters</button></div>
     <section class="door-list">${doors.map((door, i) => doorCard(door, i)).join('')}</section>
+    <section class="consent glass" aria-label="Influencers Door preview"><div><span>${icon('spark')}</span><div><strong>Influencers Door · prototype</strong><p>Explore synthetic brand relationships and campaign work packages, with creator rights and authority kept separate.</p></div></div><button class="participate" type="button" data-route="influencers">Explore Influencers Door ${icon('chevron',18)}</button></section>
   `);
 }
 function doorCard(door, i) {
@@ -130,8 +133,11 @@ function participate() {
 function success() {
   return shell(`<section class="success"><div>${icon('check',58)}</div><small>RIVEROS EVENT RECORDED</small><h1>Welcome through the Door.</h1><p>Your ${state.role} role is active inside ${state.door.name}. The next action is now visible in the Arc workspace.</p><button class="primary" data-route="arc">Open workspace</button></section>`, 'network');
 }
+function influencers() {
+  return shell(renderInfluencersDoor(state.influencerCampaignId), 'network');
+}
 function render() {
-  app.innerHTML = state.route === 'home' ? home() : state.route === 'door' ? doorScreen() : state.route === 'participate' ? participate() : state.route === 'success' ? success() : arcScreen();
+  app.innerHTML = state.route === 'home' ? home() : state.route === 'influencers' ? influencers() : state.route === 'door' ? doorScreen() : state.route === 'participate' ? participate() : state.route === 'success' ? success() : arcScreen();
   bind();
 }
 let holdFrame, holdStarted = 0;
@@ -158,11 +164,12 @@ function bind() {
     const open = () => route('door', doors.find(d => d.id === el.dataset.door));
     el.addEventListener('click', open); el.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); open(); } });
   });
-  document.querySelector('[data-action="back"]')?.addEventListener('click', () => route(state.route === 'door' ? 'home' : state.route === 'arc' ? 'door' : 'arc'));
+  document.querySelector('[data-action="back"]')?.addEventListener('click', () => route(state.route === 'influencers' ? 'home' : state.route === 'door' ? 'home' : state.route === 'arc' ? 'door' : 'arc'));
   const hold = document.querySelector('[data-hold]');
   ['pointerdown','keydown'].forEach(type => hold?.addEventListener(type, e => { if (type === 'keydown' && !['Enter',' '].includes(e.key)) return; e.preventDefault(); startHold(); }));
   ['pointerup','pointercancel','pointerleave','keyup'].forEach(type => hold?.addEventListener(type, cancelHold));
   document.querySelectorAll('[data-role]').forEach(el => el.addEventListener('click', () => { state.role = el.dataset.role; vibrate(); render(); }));
+  document.querySelectorAll('[data-influencer-campaign]').forEach(el => el.addEventListener('click', () => { state.influencerCampaignId = el.dataset.influencerCampaign; render(); }));
   document.querySelector('[data-confirm]')?.addEventListener('click', () => { record('participation.role.activated', { role: state.role, door: state.door.id }); route('success'); });
   document.querySelectorAll('[data-module]').forEach(el => el.addEventListener('click', () => alert(`${el.dataset.module} module is ready for API wiring.`)));
 }
