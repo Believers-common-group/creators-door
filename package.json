@@ -5,7 +5,8 @@
   "type": "module",
   "scripts": {
     "dev": "python3 -m http.server 4173",
-    "check": "node --check src/main.js && node --check src/data.js && node --check sw.js",
-    "build": "node scripts/build.mjs"
+    "check": "node --check src/main.js && node --check src/data.js && node --check src/influencers.js && node --check sw.js && node --test src/influencers.test.js",
+    "build": "node scripts/build.mjs",
+    "test": "node --test src/influencers.test.js"
   }
 }
