@@ -1,0 +1,35 @@
+name: Influencers Door governed runtime checks
+
+on:
+  push:
+    branches:
+      - feat/influencers-door-governed-runtime-r0-4
+  pull_request:
+    branches:
+      - feat/influencers-door-r0-3
+      - genesis
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  conformance:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Check syntax and API contracts
+        run: npm run check
+      - name: Test synthetic campaign governance
+        run: npm test
+      - name: Build existing static Creators Door
+        run: npm run build
+      - name: Verify no server runtime is shipped into the public static bundle
+        run: |
+          test -f dist/index.html
+          test -f dist/src/influencers.js
+          test ! -e dist/runtime/influencer-campaign-gateway.js
+          test ! -e dist/runtime/influencer-campaign-gateway.test.js
