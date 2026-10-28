@@ -5,8 +5,9 @@
   "type": "module",
   "scripts": {
     "dev": "python3 -m http.server 4173",
-    "check": "node --check src/main.js && node --check src/data.js && node --check src/influencers.js && node --check src/influencers.test.js && node --check sw.js && node --check runtime/influencer-campaign-gateway.js && node --check runtime/influencer-campaign-gateway.test.js",
+    "check": "node --check src/main.js && node --check src/data.js && node --check src/influencers.js && node --check src/influencers.test.js && node --check sw.js && node --check runtime/influencer-campaign-gateway.js && node --check runtime/influencer-campaign-gateway.test.js && node --check gateway/integrations.mjs && node --check gateway/server.mjs && node --check gateway/integrations.test.mjs",
     "build": "node scripts/build.mjs",
-    "test": "node --test src/influencers.test.js runtime/influencer-campaign-gateway.test.js"
+    "test": "node --test src/influencers.test.js runtime/influencer-campaign-gateway.test.js gateway/integrations.test.mjs",
+    "gateway:dev": "node gateway/server.mjs"
   }
 }
