@@ -28,6 +28,14 @@ VSR Influencers Door browser
 
 The only requested capability is `influencers.campaign.observe`. It is `action_class=OBSERVE`, `execution_plane=ALPHA_LOCAL`, and `external_effects=false`. This is **not** a permit to read a campaign's private data or activate a new actor role. The observation response is a gate result only.
 
+## Required proof fields (proposed, not deployed)
+
+The signed DigitalMe token must bind `sub`, `digitalme_actor_id`, `principal_ref`, `acting_capacity_ref` and `represented_organization_ref` to one audience, issuer and expiry. The represented organization claim cannot by itself grant representation: the BNR verification response must corroborate the acting capacity, organization, `membership_ref`, active status, capability, campaign/relationship, Genesis `node_id`, `representation_verified=true`, registry issuer and expiry.
+
+The latest Warden decision read must independently echo the actor principal, capability, work reference, all submitted node/representation/membership/relationship/campaign scope fields, `execution_plane=ALPHA_LOCAL`, `external_effects=false`, a future `valid_until`, and a River receipt reference for **that** decision. If the existing Warden API omits these fields, the adapter **denies** until an approved backend contract or independent verification adapter is supplied. This repository does not change Warden or BNR schemas.
+
+A scope-matched decision does not confer an unrestricted campaign read; further data-level policy and record projection are required.
+
 `DEMO-*` IDs cannot reach the authority chain.
 
 ## Proposed server-side configuration
