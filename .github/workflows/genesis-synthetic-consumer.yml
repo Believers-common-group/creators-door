@@ -6,10 +6,12 @@ on:
     paths:
       - 'runtime/genesis-baseline-contract.test.js'
       - '.github/workflows/genesis-synthetic-consumer.yml'
+      - 'docs/GENESIS_SYNTHETIC_BASELINE_CONSUMER_R02.md'
   pull_request:
     paths:
       - 'runtime/genesis-baseline-contract.test.js'
       - '.github/workflows/genesis-synthetic-consumer.yml'
+      - 'docs/GENESIS_SYNTHETIC_BASELINE_CONSUMER_R02.md'
 permissions: {}
 jobs:
   synthetic-consumer:
