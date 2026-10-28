@@ -1,5 +1,5 @@
-import './styles.css';
 import { doors, modules, activity } from './data.js';
+import { campaigns, renderInfluencersDoor } from './influencers.js';
 
 const app = document.querySelector('#app');
 const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -9,6 +9,10 @@ const state = {
   phase: 'idle',
   hold: 0,
   role: 'Contributor',
+  influencerCampaignId: campaigns[0].campaignId,
+  liveRelationshipId: '',
+  liveCampaignId: '',
+  connectorFeedback: 'Not connected — local preview only',
   evidence: []
 };
 
@@ -47,7 +51,7 @@ function shell(content, active = 'doors', immersive = false) {
   return `<main class="app-shell ${immersive ? 'immersive' : ''}">
     <header class="topbar glass">
       <button class="icon-button" data-action="${back ? 'back' : 'brand'}" aria-label="${back ? 'Go back' : 'VSR home'}">${back ? icon('back') : '<span class="brand">V</span>'}</button>
-      <div class="topbar-title"><small>VIRTUAL SILK ROAD</small><strong>Creators Door</strong></div>
+      <div class="topbar-title"><small>VIRTUAL SILK ROAD</small><strong>${state.route === 'influencers' ? 'Influencers Door' : 'Creators Door'}</strong></div>
       <button class="icon-button" aria-label="Notifications">${icon('bell')}<i></i></button>
     </header>
     <section class="screen">${content}</section>
@@ -66,12 +70,13 @@ function home() {
       <p>Each Door is a governed entry into a creator, product, service or mission network.</p>
     </section>
     <section class="assurances">
-      <article class="glass">${icon('shield')}<strong>Verified</strong><span>Warden checked</span></article>
-      <article class="glass">${icon('river')}<strong>Transparent</strong><span>RiverOS evidence</span></article>
+      <article class="glass">${icon('shield')}<strong>Preview</strong><span>Mock Warden only</span></article>
+      <article class="glass">${icon('river')}<strong>Sample events</strong><span>No live RiverOS receipt</span></article>
       <article class="glass">${icon('spark')}<strong>Yours to build</strong><span>Participate and grow</span></article>
     </section>
     <div class="section-title"><div><small>EXPLORE</small><h2>Active Doors</h2></div><button>Filters</button></div>
     <section class="door-list">${doors.map((door, i) => doorCard(door, i)).join('')}</section>
+    <section class="consent glass" aria-label="Influencers Door preview"><div><span>${icon('spark')}</span><div><strong>Influencers Door · prototype</strong><p>Explore synthetic brand relationships and campaign work packages, with creator rights and authority kept separate.</p></div></div><button class="participate" type="button" data-route="influencers">Explore Influencers Door ${icon('chevron',18)}</button></section>
   `);
 }
 function doorCard(door, i) {
@@ -102,7 +107,7 @@ function doorScreen() {
       <div class="phase-row"><span class="${['verifying','opening','open'].includes(state.phase) ? 'done' : 'active'}">1 Touch</span><span class="${['opening','open'].includes(state.phase) ? 'done' : state.phase === 'verifying' ? 'active' : ''}">2 Verify</span><span class="${state.phase === 'open' ? 'done' : state.phase === 'opening' ? 'active' : ''}">3 Open</span></div>
       <div class="progress"><i style="width:${state.phase === 'open' ? 100 : state.phase === 'opening' ? 74 : state.phase === 'verifying' ? 42 : state.hold}%"></i></div>
       ${state.phase === 'open'
-        ? `<h2>Access verified</h2><p>Warden confirmed your DigitalMe authority. The threshold is open.</p><button class="primary enter" data-route="arc">Enter ${d.name}</button>`
+        ? `<h2>Demo threshold open</h2><p>Mock Warden approved this preview. No live identity or access permission was granted.</p><button class="primary enter" data-route="arc">Enter ${d.name}</button>`
         : `<h2>${state.phase === 'verifying' ? 'Warden is verifying' : state.phase === 'opening' ? 'Opening the threshold' : 'Touch and hold to open'}</h2><p>${state.phase === 'idle' ? 'Hold the seal. Consent and authority are checked before the Door opens.' : 'Identity, consent, role and active Arc context are being evaluated.'}</p><button class="hold-button" data-hold aria-label="Touch and hold the seal">${icon('lock')}<span>Hold to verify</span></button>`}
     </section>
   `, 'doors', true);
@@ -110,28 +115,35 @@ function doorScreen() {
 function arcScreen() {
   const d = state.door;
   return shell(`
-    <section class="arc-hero glass"><div><small>YOU HAVE ENTERED</small><h1>${d.name}</h1><p>${d.eyebrow}</p></div><b>Warden verified</b></section>
+    <section class="arc-hero glass"><div><small>YOU HAVE ENTERED</small><h1>${d.name}</h1><p>${d.eyebrow}</p></div><b>Demo only</b></section>
     <section class="metrics"><article class="glass"><strong>${d.members}</strong><span>DigitalMe Actors</span></article><article class="glass"><strong>${d.doors}</strong><span>Connected Doors</span></article><article class="glass"><strong>${d.progress}%</strong><span>Mission progress</span></article></section>
     <div class="section-title"><div><small>INSIDE THE DOOR</small><h2>Arc workspace</h2></div></div>
     <section class="module-grid">${modules.map(([id,title,desc]) => `<button class="module glass" data-module="${id}"><span>${icon(id === 'actors' ? 'network' : id === 'tasks' ? 'tasks' : id === 'payments' ? 'spark' : 'door')}</span><div><strong>${title}</strong><small>${desc}</small></div>${icon('chevron',18)}</button>`).join('')}</section>
-    <div class="section-title"><div><small>RIVER</small><h2>Recent evidence</h2></div></div>
+    <div class="section-title"><div><small>DEMO</small><h2>Sample activity, not River receipts</h2></div></div>
     <section class="feed glass">${activity.map(([title,desc,time]) => `<article><span>${icon('river',18)}</span><div><strong>${title}</strong><p>${desc}</p></div><time>${time}</time></article>`).join('')}</section>
     <button class="participate" data-route="participate">Participate in this Arc ${icon('chevron',18)}</button>
   `, 'network');
 }
 function participate() {
   const roles = [['Contributor','Create, complete tasks and add evidence'],['Partner','Provide capabilities, services or reach'],['Investor','Support a governed mission or product'],['Observer','Follow progress without operating authority']];
-  return shell(`<section class="hero compact"><p class="kicker">PARTICIPATION ROUTE</p><h1>Choose your role.</h1><p>Warden will attach the selected role to your DigitalMe Actor and the active Arc context.</p></section>
+  return shell(`<section class="hero compact"><p class="kicker">PARTICIPATION ROUTE</p><h1>Choose your role.</h1><p>A live Warden would require authorized DigitalMe identity and scope. This preview does not grant a role.</p></section>
     <section class="role-list">${roles.map(([r,d]) => `<button class="role glass ${state.role === r ? 'selected' : ''}" data-role="${r}"><span>${icon(state.role === r ? 'check' : 'profile')}</span><div><strong>${r}</strong><small>${d}</small></div></button>`).join('')}</section>
-    <section class="consent glass"><div>${icon('shield')}<div><strong>Consent boundary</strong><p>This action records your selected role, authority context and timestamp. It does not enable covert device access.</p></div></div><label><input type="checkbox" checked/> Record participation evidence in RiverOS</label></section>
-    <button class="participate" data-confirm>Confirm ${state.role} role</button>
+    <section class="consent glass"><div>${icon('shield')}<div><strong>Consent boundary</strong><p>This action records your selected role, authority context and timestamp. It does not enable covert device access.</p></div></div><label><input type="checkbox" checked/> Record local demonstration event only</label></section>
+    <button class="participate" data-confirm>Preview ${state.role} role</button>
   `, 'network');
 }
 function success() {
-  return shell(`<section class="success"><div>${icon('check',58)}</div><small>RIVEROS EVENT RECORDED</small><h1>Welcome through the Door.</h1><p>Your ${state.role} role is active inside ${state.door.name}. The next action is now visible in the Arc workspace.</p><button class="primary" data-route="arc">Open workspace</button></section>`, 'network');
+  return shell(`<section class="success"><div>${icon('check',58)}</div><small>LOCAL DEMO EVENT</small><h1>Welcome through the Door.</h1><p>Your ${state.role} preview role is visible in the demo workspace. No live role or Warden authority was issued.</p><button class="primary" data-route="arc">Open workspace</button></section>`, 'network');
+}
+function influencers() {
+  return shell(renderInfluencersDoor(state.influencerCampaignId, {
+    relationshipId: state.liveRelationshipId,
+    campaignId: state.liveCampaignId,
+    feedback: state.connectorFeedback
+  }), 'network');
 }
 function render() {
-  app.innerHTML = state.route === 'home' ? home() : state.route === 'door' ? doorScreen() : state.route === 'participate' ? participate() : state.route === 'success' ? success() : arcScreen();
+  app.innerHTML = state.route === 'home' ? home() : state.route === 'influencers' ? influencers() : state.route === 'door' ? doorScreen() : state.route === 'participate' ? participate() : state.route === 'success' ? success() : arcScreen();
   bind();
 }
 let holdFrame, holdStarted = 0;
@@ -152,17 +164,74 @@ function verify() {
   setTimeout(() => { state.phase = 'opening'; render(); }, reduceMotion ? 100 : 900);
   setTimeout(() => { state.phase = 'open'; record('door.opened', { door: state.door.id, authority: 'mock-warden-approved' }); vibrate([22,50,28]); render(); }, reduceMotion ? 220 : 2200);
 }
+async function checkIntegrationStatus() {
+  state.connectorFeedback = 'Checking service configuration...';
+  render();
+  try {
+    const response = await fetch('/api/influencers/status', { credentials: 'same-origin', cache: 'no-store' });
+    if (!response.ok) throw new Error('gateway_unavailable');
+    const value = await response.json();
+    if (value.mode !== 'review_only') throw new Error('unexpected_gateway_mode');
+    state.connectorFeedback = 'Identity: ' + value.actor_identity +
+      '; BNR: ' + value.bnr_entitlement + '; Warden: ' + value.warden +
+      '; publishing and settlement: disabled.';
+  } catch {
+    state.connectorFeedback = 'Gateway unavailable — governed verification remains blocked.';
+  }
+  if (state.route === 'influencers') render();
+}
+
+async function observeInfluencerCampaign() {
+  if (!/^[A-Za-z0-9:._-]{1,128}$/.test(state.liveRelationshipId) ||
+      !/^[A-Za-z0-9:._-]{1,128}$/.test(state.liveCampaignId) ||
+      state.liveRelationshipId.startsWith('DEMO-') ||
+      state.liveCampaignId.startsWith('DEMO-')) {
+    state.connectorFeedback = 'Enter actual registered relationship and campaign IDs. Demo IDs cannot be authorized.';
+    render(); return;
+  }
+  state.connectorFeedback = 'Checking identity, membership, Warden and River receipt...';
+  render();
+  try {
+    const response = await fetch('/api/influencers/observe', {
+      method: 'POST', credentials: 'same-origin', cache: 'no-store',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        relationship_id: state.liveRelationshipId,
+        campaign_id: state.liveCampaignId
+      })
+    });
+    const value = await response.json();
+    if (!response.ok || value.authorized !== true || value.external_effects !== false) {
+      throw new Error(typeof value.code === 'string' ? value.code : 'verification_denied');
+    }
+    state.connectorFeedback = 'Observation authorization verified for this request. Warden decision: ' +
+      String(value.warden_decision_id).slice(0,128) + '; River reference: ' +
+      String(value.river_receipt_id).slice(0,128) +
+      '. No publishing, mutation, sales or settlement authorized.';
+  } catch (error) {
+    const reason = String(error.message || 'unavailable');
+    state.connectorFeedback = 'Access blocked: ' +
+      (/^[a-z_]+$/.test(reason) ? reason : 'upstream_unavailable');
+  }
+  if (state.route === 'influencers') render();
+}
+
 function bind() {
   document.querySelectorAll('[data-route]').forEach(el => el.addEventListener('click', () => route(el.dataset.route)));
   document.querySelectorAll('[data-door]').forEach(el => {
     const open = () => route('door', doors.find(d => d.id === el.dataset.door));
     el.addEventListener('click', open); el.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); open(); } });
   });
-  document.querySelector('[data-action="back"]')?.addEventListener('click', () => route(state.route === 'door' ? 'home' : state.route === 'arc' ? 'door' : 'arc'));
+  document.querySelector('[data-action="back"]')?.addEventListener('click', () => route(state.route === 'influencers' ? 'home' : state.route === 'door' ? 'home' : state.route === 'arc' ? 'door' : 'arc'));
   const hold = document.querySelector('[data-hold]');
   ['pointerdown','keydown'].forEach(type => hold?.addEventListener(type, e => { if (type === 'keydown' && !['Enter',' '].includes(e.key)) return; e.preventDefault(); startHold(); }));
   ['pointerup','pointercancel','pointerleave','keyup'].forEach(type => hold?.addEventListener(type, cancelHold));
   document.querySelectorAll('[data-role]').forEach(el => el.addEventListener('click', () => { state.role = el.dataset.role; vibrate(); render(); }));
+  document.querySelectorAll('[data-influencer-campaign]').forEach(el => el.addEventListener('click', () => { state.influencerCampaignId = el.dataset.influencerCampaign; render(); }));
+  document.querySelector('[data-live-relationship]')?.addEventListener('input', el => { state.liveRelationshipId = el.target.value; });
+  document.querySelector('[data-live-campaign]')?.addEventListener('input', el => { state.liveCampaignId = el.target.value; });
+  document.querySelector('[data-connector-status]')?.addEventListener('click', checkIntegrationStatus);
+  document.querySelector('[data-connector-observe]')?.addEventListener('click', observeInfluencerCampaign);
   document.querySelector('[data-confirm]')?.addEventListener('click', () => { record('participation.role.activated', { role: state.role, door: state.door.id }); route('success'); });
   document.querySelectorAll('[data-module]').forEach(el => el.addEventListener('click', () => alert(`${el.dataset.module} module is ready for API wiring.`)));
 }
