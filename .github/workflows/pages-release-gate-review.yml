@@ -1,0 +1,63 @@
+name: Creators Door Pages release gate review (non-deploying)
+on:
+  push:
+    branches:
+      - feat/github-manual-pages-gate-r0-2
+  pull_request:
+    branches:
+      - feat/github-release-control-r0-1
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  pages-gate-review:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Check syntax and workflow preflight
+        run: npm run check
+      - name: Build public allowlisted assets
+        run: npm run build
+      - name: Verify negative release and workflow tests
+        run: npm test
+      - name: Generate evidence manifest
+        run: npm run verify:release
+      - name: Confirm candidate manifest blocks deployment and no backend is published
+        run: |
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          import assert from 'node:assert/strict';
+          import { assertPagesPublishGate } from './scripts/check-pages-publish-gate.mjs';
+          const m = JSON.parse(fs.readFileSync('out/release-manifest.json', 'utf8'));
+          assert.equal(m.deployEligible, false);
+          assert.equal(m.classification, 'PUBLIC_STATIC_PROTOTYPE');
+          assert.throws(() => assertPagesPublishGate({
+            eventName:'workflow_dispatch',
+            ref:'refs/heads/main',
+            sha:process.env.GITHUB_SHA,
+            expectedSha:process.env.GITHUB_SHA,
+            classification:'PUBLIC_STATIC_PROTOTYPE',
+            acknowledgement:'PUBLISH_STATIC_PROTOTYPE_ONLY',
+            releaseReference:'BNR-RELEASE-SYNTHETIC-0001',
+            manifest:m
+          }), /pages_publish_blocked:release_not_eligible/);
+          NODE
+          test ! -e dist/runtime
+          test ! -e dist/docs
+      - name: Upload non-deploying proof artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: creators-door-pages-gate-review-${{ github.sha }}
+          path: |
+            out/release-manifest.json
+            dist/
+          retention-days: 14
+          if-no-files-found: error

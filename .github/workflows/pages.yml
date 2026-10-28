@@ -1,47 +1,89 @@
-name: Deploy Creators Door
+name: Creators Door — controlled Pages publication
 
+# R0.2: No push-triggered publishing. Manual release request only.
+# Current release manifest is deployEligible:false, so even a manual request
+# cannot publish until a separately approved policy change is reviewed.
 on:
-  push:
-    branches: [main]
   workflow_dispatch:
+    inputs:
+      expected_sha:
+        description: 'Exact 40-character SHA of main to publish'
+        required: true
+        type: string
+      release_reference:
+        description: 'Externally reviewed BNR-RELEASE-... reference (not proof by itself)'
+        required: true
+        type: string
+      acknowledgement:
+        description: 'Confirm this is a public static prototype, not Genesis authority'
+        required: true
+        type: choice
+        options:
+          - PUBLISH_STATIC_PROTOTYPE_ONLY
+
+run-name: 'Creators Door static publication · ${{ inputs.release_reference }}'
 
 permissions:
   contents: read
-  pages: write
-  id-token: write
 
 concurrency:
-  group: pages
-  cancel-in-progress: true
+  group: creators-door-controlled-pages
+  cancel-in-progress: false
 
 jobs:
-  build:
+  validate:
+    # Cannot publish from feature branches or PR events.
+    if: ${{ github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main' }}
     runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
     steps:
-      - name: Checkout
+      - name: Checkout selected main commit
         uses: actions/checkout@v4
+        with:
+          persist-credentials: false
       - name: Set up Node
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: '22'
       - name: Validate source
         run: npm run check
-      - name: Build static site
+      - name: Build exact public browser allowlist
         run: npm run build
-      - name: Configure Pages
+      - name: Test release gate and public artifact
+        run: npm test
+      - name: Produce SHA-256 release manifest
+        run: npm run verify:release
+      - name: Apply fail-closed publication gate
+        env:
+          RELEASE_EXPECTED_SHA: ${{ inputs.expected_sha }}
+          RELEASE_REFERENCE: ${{ inputs.release_reference }}
+          RELEASE_ACKNOWLEDGEMENT: ${{ inputs.acknowledgement }}
+          RELEASE_CLASSIFICATION: PUBLIC_STATIC_PROTOTYPE
+        run: npm run check:publish
+      - name: Configure GitHub Pages
         uses: actions/configure-pages@v5
-      - name: Upload Pages artifact
+      - name: Upload verified Pages artifact
         uses: actions/upload-pages-artifact@v3
         with:
           path: dist
 
   deploy:
+    if: ${{ github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main' }}
+    needs: validate
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    # REQUIRED external setting: GitHub environment "github-pages" must
+    # restrict to main and require a non-self reviewer before live use.
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
-    runs-on: ubuntu-latest
-    needs: build
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
     steps:
-      - name: Deploy to GitHub Pages
+      - name: Publish approved static Pages artifact only
         id: deployment
         uses: actions/deploy-pages@v4
