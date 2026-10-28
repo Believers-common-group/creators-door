@@ -76,11 +76,14 @@ export async function verifyDigitalMeSession(sessionJwt, { env = process.env, fe
   if (claims.iss !== issuer || !audOK || !Number.isFinite(claims.exp) || claims.exp * 1000 <= now ||
       !Number.isFinite(claims.nbf || 0) || (claims.nbf || 0) * 1000 > now ||
       !validRef(claims.sub) || !validRef(claims.digitalme_actor_id) ||
-      !validRef(claims.principal_ref)) {
+      !validRef(claims.principal_ref) || !validRef(claims.acting_capacity_ref) ||
+      !validRef(claims.represented_organization_ref)) {
     throw new GateError(401, 'session_identity_or_lifetime_invalid');
   }
   // A signed session is identity only. It DOES NOT confer BNR entitlement or Warden authority.
-  return { subject: claims.sub, actor_id: claims.digitalme_actor_id, principal_ref: claims.principal_ref };
+  return { subject: claims.sub, actor_id: claims.digitalme_actor_id,
+    principal_ref: claims.principal_ref, acting_capacity_ref: claims.acting_capacity_ref,
+    represented_organization_ref: claims.represented_organization_ref };
 }
 
 export function sessionFromRequest(req) {
@@ -119,11 +122,19 @@ export async function authorizeObservation({ sessionJwt, body, env = process.env
   const membership = await jsonCall(bnrUrl, {
     method: 'POST', fetchImpl, token: bnrToken,
     payload: { actor_id: actor.actor_id, principal_ref: actor.principal_ref,
-      campaign_id, relationship_id, capability }
+      acting_capacity_ref: actor.acting_capacity_ref,
+      represented_organization_ref: actor.represented_organization_ref,
+      node_id: node, campaign_id, relationship_id, capability }
   });
   if (membership.permitted !== true || membership.status !== 'active' ||
       membership.actor_id !== actor.actor_id || membership.relationship_id !== relationship_id ||
-      membership.campaign_id !== campaign_id || !validRef(membership.issuer_ref) ||
+      membership.campaign_id !== campaign_id ||
+      membership.node_id !== node ||
+      membership.acting_capacity_ref !== actor.acting_capacity_ref ||
+      membership.represented_organization_ref !== actor.represented_organization_ref ||
+      membership.representation_verified !== true ||
+      !Array.isArray(membership.capabilities) || !membership.capabilities.includes(capability) ||
+      !validRef(membership.membership_ref) || !validRef(membership.issuer_ref) ||
       !validTime(membership.valid_until)) {
     throw new GateError(403, 'bnr_membership_not_verified');
   }
@@ -141,7 +152,11 @@ export async function authorizeObservation({ sessionJwt, body, env = process.env
     provider_id: provider,
     capability, action_class: 'OBSERVE',
     scope: { execution_plane: 'ALPHA_LOCAL', external_effects: false,
-      node_id: node, actor_id: actor.actor_id, relationship_id, campaign_id },
+      node_id: node, actor_id: actor.actor_id,
+      acting_capacity_ref: actor.acting_capacity_ref,
+      represented_organization_ref: actor.represented_organization_ref,
+      membership_ref: membership.membership_ref,
+      relationship_id, campaign_id },
     purpose: 'View governed influencer campaign context',
     idempotency_key: 'influencers-observe:' + randomUUID()
   };
@@ -153,6 +168,18 @@ export async function authorizeObservation({ sessionJwt, body, env = process.env
   const latest = await jsonCall(wardenUrl + '/api/v1/warden/capabilities/decisions/' +
     encodeURIComponent(decision.decision_id), { fetchImpl, token: wardenToken });
   if (latest.decision_id !== decision.decision_id || latest.outcome !== 'ALLOW' ||
+      latest.capability !== capability || latest.principal_ref !== actor.principal_ref ||
+      latest.work_ref !== campaign_id ||
+      latest.scope?.node_id !== node ||
+      latest.scope?.campaign_id !== campaign_id ||
+      latest.scope?.relationship_id !== relationship_id ||
+      latest.scope?.actor_id !== actor.actor_id ||
+      latest.scope?.acting_capacity_ref !== actor.acting_capacity_ref ||
+      latest.scope?.represented_organization_ref !== actor.represented_organization_ref ||
+      latest.scope?.membership_ref !== membership.membership_ref ||
+      latest.scope?.external_effects !== false ||
+      latest.scope?.execution_plane !== 'ALPHA_LOCAL' ||
+      !validTime(latest.valid_until) ||
       !validRef(latest.river_receipt_id)) {
     throw new GateError(409, 'river_receipt_pending_or_invalid');
   }
