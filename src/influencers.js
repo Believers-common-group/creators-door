@@ -74,7 +74,7 @@ function escapeHtml(value) {
 }
 function e(value) { return escapeHtml(value); }
 
-export function renderInfluencersDoor(selectedId = campaigns[0].campaignId) {
+export function renderInfluencersDoor(selectedId = campaigns[0].campaignId, options = {}) {
   const c = getCampaign(selectedId);
   const buttons = campaigns.map(item =>
     '<button type="button" class="role glass ' + (item.campaignId === c.campaignId ? 'selected' : '') +
@@ -110,6 +110,15 @@ export function renderInfluencersDoor(selectedId = campaigns[0].campaignId) {
     '<section class="feed glass">' + detail + '</section>',
     '<section class="consent glass"><div><span>◇</span><div><strong>Governed workflow</strong>',
     '<p>Agreement → consent → Warden authorization → submissions → independent acceptance → evidence → reconciliation. No real action is triggered by this preview.</p>',
-    '</div></div></section>'
+    '</div></div></section>',
+    '<div class="section-title"><div><small>GENESIS INTEGRATION R0.4</small><h2>Governed access check</h2></div></div>',
+    '<section class="consent glass"><div><span>◇</span><div><strong>Server-side verification only</strong>',
+    '<p>Requires a trusted DigitalMe session, active BNR membership, admitted Warden observation capability and a corresponding River receipt. Does not publish or pay.</p></div></div>',
+    '<label class="connector-field">Registered relationship ID<input data-live-relationship type="text" autocomplete="off" maxlength="128" placeholder="Registered relationship ID" value="' + e(options.relationshipId || '') + '"></label>',
+    '<label class="connector-field">Registered campaign ID<input data-live-campaign type="text" autocomplete="off" maxlength="128" placeholder="Registered campaign ID" value="' + e(options.campaignId || '') + '"></label>',
+    '<button type="button" class="participate" data-connector-status>Check service configuration</button>',
+    '<button type="button" class="participate" data-connector-observe>Verify read-only observation</button>',
+    '<p class="connector-feedback" role="status" aria-live="polite">' + e(options.feedback || 'Not connected — local preview only') + '</p>',
+    '</section>'
   ].join('');
 }
