@@ -1,0 +1,30 @@
+name: Influencers Door R0.6 durable evidence checks
+on:
+  push:
+    branches: [feat/influencers-door-durable-evidence-r0-6]
+  pull_request:
+    branches: [feat/influencers-door-signed-warden-r0-5]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  durable-evidence:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Validate syntax
+        run: npm run check
+      - name: Verify signatures, replay prevention and SQLite restart durability
+        run: npm test
+      - name: Build existing static Creators Door
+        run: npm run build
+      - name: Guard server-only runtime from public static bundle
+        run: |
+          test -f dist/index.html
+          test -f dist/src/influencers.js
+          test ! -e dist/runtime/durable-campaign-ledger.js
+          test ! -e dist/runtime/verified-river-receipt.js
+          test ! -e dist/runtime/durable-evidence.test.js
