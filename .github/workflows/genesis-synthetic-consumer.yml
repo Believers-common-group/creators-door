@@ -1,0 +1,48 @@
+name: Creators Door — Genesis synthetic baseline R0.2 conformance
+on:
+  push:
+    branches:
+      - test/creators-door-genesis-synthetic-r02
+    paths:
+      - 'runtime/genesis-baseline-contract.test.js'
+      - '.github/workflows/genesis-synthetic-consumer.yml'
+      - 'docs/GENESIS_SYNTHETIC_BASELINE_CONSUMER_R02.md'
+  pull_request:
+    paths:
+      - 'runtime/genesis-baseline-contract.test.js'
+      - '.github/workflows/genesis-synthetic-consumer.yml'
+      - 'docs/GENESIS_SYNTHETIC_BASELINE_CONSUMER_R02.md'
+permissions: {}
+jobs:
+  synthetic-consumer:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout Creators Door test branch without persisted credentials
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+      - name: Checkout immutable Genesis synthetic baseline reference (read-only)
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          repository: Esomoire-consultancy-Company/genesis-ark
+          ref: 00591414a979872e29c005e6e2a6784eaf66c45e
+          path: _synthetic_reference
+          sparse-checkout: |
+            synthetic-baseline
+          persist-credentials: false
+      - name: Set up Node
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: '22'
+      - name: Verify test-only adapter syntax
+        run: node --check runtime/genesis-baseline-contract.test.js
+      - name: Verify baseline fixture scope and fail-closed consumer admission
+        run: node --test runtime/genesis-baseline-contract.test.js
+      - name: Build static Creators Door and ensure fixtures are not published
+        run: |
+          npm run build
+          test -f dist/index.html
+          test ! -e dist/_synthetic_reference
+          test ! -e dist/runtime/genesis-baseline-contract.test.js
+          test ! -e dist/runtime/influencer-campaign-gateway.js
