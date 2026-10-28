@@ -21,6 +21,8 @@ jobs:
         run: npm run check
       - name: Verify lifecycle and permission checks
         run: npm test
+      - name: Run synthetic and gateway conformance tests
+        run: npm test
       - name: Build static site
         run: npm run build
       - name: Confirm build contents
