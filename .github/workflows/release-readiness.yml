@@ -1,0 +1,54 @@
+name: Creators Door release readiness (non-deploying)
+
+on:
+  push:
+    branches:
+      - feat/github-release-control-r0-1
+  pull_request:
+    branches:
+      - genesis
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: creators-release-check-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  static-preview-readiness:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout proposed code
+        uses: actions/checkout@v4
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Validate syntax
+        run: npm run check
+      - name: Build allowlisted static assets only
+        run: npm run build
+      - name: Test release validation fail-closed behavior
+        run: npm test
+      - name: Verify public artifact and produce SHA-256 evidence
+        run: npm run verify:release
+      - name: Confirm this workflow cannot be a production deployment
+        run: |
+          node -e "const f=require('./out/release-manifest.json');if(f.deployEligible!==false||f.classification!=='PUBLIC_STATIC_PROTOTYPE')process.exit(1)"
+          test ! -e dist/runtime
+          test ! -e dist/docs
+          test ! -e dist/.github
+          test ! -e dist/src/influencers.test.js
+      - name: Upload candidate artifacts (review only)
+        uses: actions/upload-artifact@v4
+        with:
+          name: creators-door-static-preview-${{ github.sha }}
+          path: |
+            dist/
+            out/release-manifest.json
+          if-no-files-found: error
+          retention-days: 14
