@@ -1,0 +1,35 @@
+name: Influencers Door signed Warden verification
+
+on:
+  push:
+    branches:
+      - feat/influencers-door-signed-warden-r0-5
+  pull_request:
+    branches:
+      - feat/influencers-door-governed-runtime-r0-4
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify-signature-and-scope:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Validate all runtime and UI source
+        run: npm run check
+      - name: Verify signed Warden conformance and replay controls
+        run: npm test
+      - name: Build unchanged public Creators Door
+        run: npm run build
+      - name: Confirm backend and key fixtures stay outside public bundle
+        run: |
+          test -f dist/index.html
+          test -f dist/src/influencers.js
+          test ! -e dist/runtime/influencer-campaign-gateway.js
+          test ! -e dist/runtime/signed-warden-conformance.js
+          test ! -e dist/runtime/signed-warden-conformance.test.js
