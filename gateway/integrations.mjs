@@ -87,12 +87,17 @@ export function sessionFromRequest(req) {
   const cookies = String(req.headers.cookie || '').split(';').map(c => c.trim());
   const match = cookies.find(c => c.startsWith('__Host-vsr_session='));
   if (!match) throw new GateError(401, 'session_missing_or_invalid');
-  return decodeURIComponent(match.slice('__Host-vsr_session='.length));
+  try { return decodeURIComponent(match.slice('__Host-vsr_session='.length)); }
+  catch { throw new GateError(401, 'session_missing_or_invalid'); }
 }
 
 export function validateRequest(body) {
-  const campaign_id = body?.campaign_id;
-  const relationship_id = body?.relationship_id;
+  if (!body || typeof body !== 'object' || Array.isArray(body) ||
+      Object.keys(body).some(key => !['campaign_id', 'relationship_id'].includes(key))) {
+    throw new GateError(400, 'unexpected_request_field');
+  }
+  const campaign_id = body.campaign_id;
+  const relationship_id = body.relationship_id;
   if (!validRef(campaign_id) || !validRef(relationship_id)) throw new GateError(400, 'invalid_work_references');
   if (campaign_id.startsWith('DEMO-') || relationship_id.startsWith('DEMO-')) {
     throw new GateError(403, 'synthetic_work_cannot_authorize');
