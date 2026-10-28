@@ -1,4 +1,3 @@
-import './styles.css';
 import { doors, modules, activity } from './data.js';
 import { campaigns, renderInfluencersDoor } from './influencers.js';
 
@@ -11,6 +10,9 @@ const state = {
   hold: 0,
   role: 'Contributor',
   influencerCampaignId: campaigns[0].campaignId,
+  liveRelationshipId: '',
+  liveCampaignId: '',
+  connectorFeedback: 'Not connected — local preview only',
   evidence: []
 };
 
@@ -134,7 +136,11 @@ function success() {
   return shell(`<section class="success"><div>${icon('check',58)}</div><small>RIVEROS EVENT RECORDED</small><h1>Welcome through the Door.</h1><p>Your ${state.role} role is active inside ${state.door.name}. The next action is now visible in the Arc workspace.</p><button class="primary" data-route="arc">Open workspace</button></section>`, 'network');
 }
 function influencers() {
-  return shell(renderInfluencersDoor(state.influencerCampaignId), 'network');
+  return shell(renderInfluencersDoor(state.influencerCampaignId, {
+    relationshipId: state.liveRelationshipId,
+    campaignId: state.liveCampaignId,
+    feedback: state.connectorFeedback
+  }), 'network');
 }
 function render() {
   app.innerHTML = state.route === 'home' ? home() : state.route === 'influencers' ? influencers() : state.route === 'door' ? doorScreen() : state.route === 'participate' ? participate() : state.route === 'success' ? success() : arcScreen();
@@ -158,6 +164,58 @@ function verify() {
   setTimeout(() => { state.phase = 'opening'; render(); }, reduceMotion ? 100 : 900);
   setTimeout(() => { state.phase = 'open'; record('door.opened', { door: state.door.id, authority: 'mock-warden-approved' }); vibrate([22,50,28]); render(); }, reduceMotion ? 220 : 2200);
 }
+async function checkIntegrationStatus() {
+  state.connectorFeedback = 'Checking service configuration...';
+  render();
+  try {
+    const response = await fetch('/api/influencers/status', { credentials: 'same-origin', cache: 'no-store' });
+    if (!response.ok) throw new Error('gateway_unavailable');
+    const value = await response.json();
+    if (value.mode !== 'review_only') throw new Error('unexpected_gateway_mode');
+    state.connectorFeedback = 'Identity: ' + value.actor_identity +
+      '; BNR: ' + value.bnr_entitlement + '; Warden: ' + value.warden +
+      '; publishing and settlement: disabled.';
+  } catch {
+    state.connectorFeedback = 'Gateway unavailable — governed verification remains blocked.';
+  }
+  if (state.route === 'influencers') render();
+}
+
+async function observeInfluencerCampaign() {
+  if (!/^[A-Za-z0-9:._-]{1,128}$/.test(state.liveRelationshipId) ||
+      !/^[A-Za-z0-9:._-]{1,128}$/.test(state.liveCampaignId) ||
+      state.liveRelationshipId.startsWith('DEMO-') ||
+      state.liveCampaignId.startsWith('DEMO-')) {
+    state.connectorFeedback = 'Enter actual registered relationship and campaign IDs. Demo IDs cannot be authorized.';
+    render(); return;
+  }
+  state.connectorFeedback = 'Checking identity, membership, Warden and River receipt...';
+  render();
+  try {
+    const response = await fetch('/api/influencers/observe', {
+      method: 'POST', credentials: 'same-origin', cache: 'no-store',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        relationship_id: state.liveRelationshipId,
+        campaign_id: state.liveCampaignId
+      })
+    });
+    const value = await response.json();
+    if (!response.ok || value.authorized !== true || value.external_effects !== false) {
+      throw new Error(typeof value.code === 'string' ? value.code : 'verification_denied');
+    }
+    state.connectorFeedback = 'Observation authorization verified for this request. Warden decision: ' +
+      String(value.warden_decision_id).slice(0,128) + '; River reference: ' +
+      String(value.river_receipt_id).slice(0,128) +
+      '. No publishing, mutation, sales or settlement authorized.';
+  } catch (error) {
+    const reason = String(error.message || 'unavailable');
+    state.connectorFeedback = 'Access blocked: ' +
+      (/^[a-z_]+$/.test(reason) ? reason : 'upstream_unavailable');
+  }
+  if (state.route === 'influencers') render();
+}
+
 function bind() {
   document.querySelectorAll('[data-route]').forEach(el => el.addEventListener('click', () => route(el.dataset.route)));
   document.querySelectorAll('[data-door]').forEach(el => {
@@ -170,6 +228,10 @@ function bind() {
   ['pointerup','pointercancel','pointerleave','keyup'].forEach(type => hold?.addEventListener(type, cancelHold));
   document.querySelectorAll('[data-role]').forEach(el => el.addEventListener('click', () => { state.role = el.dataset.role; vibrate(); render(); }));
   document.querySelectorAll('[data-influencer-campaign]').forEach(el => el.addEventListener('click', () => { state.influencerCampaignId = el.dataset.influencerCampaign; render(); }));
+  document.querySelector('[data-live-relationship]')?.addEventListener('input', el => { state.liveRelationshipId = el.target.value; });
+  document.querySelector('[data-live-campaign]')?.addEventListener('input', el => { state.liveCampaignId = el.target.value; });
+  document.querySelector('[data-connector-status]')?.addEventListener('click', checkIntegrationStatus);
+  document.querySelector('[data-connector-observe]')?.addEventListener('click', observeInfluencerCampaign);
   document.querySelector('[data-confirm]')?.addEventListener('click', () => { record('participation.role.activated', { role: state.role, door: state.door.id }); route('success'); });
   document.querySelectorAll('[data-module]').forEach(el => el.addEventListener('click', () => alert(`${el.dataset.module} module is ready for API wiring.`)));
 }
