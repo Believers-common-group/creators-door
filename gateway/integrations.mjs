@@ -193,9 +193,9 @@ export async function authorizeObservation({ sessionJwt, body, env = process.env
 export function integrationStatus(env = process.env) {
   return {
     mode: 'review_only',
-    actor_identity: env.DIGITALME_OIDC_ISSUER && env.DIGITALME_JWKS_URL ? 'configured_not_verified' : 'not_configured',
+    actor_identity: env.DIGITALME_OIDC_ISSUER && env.DIGITALME_OIDC_AUDIENCE && env.DIGITALME_JWKS_URL ? 'configured_not_verified' : 'not_configured',
     bnr_entitlement: env.BNR_ENTITLEMENT_VERIFY_URL && env.BNR_SERVICE_TOKEN ? 'configured_not_verified' : 'not_configured',
-    warden: env.WARDEN_RETURN_PATH_URL && env.WARDEN_SERVICE_TOKEN ? 'configured_not_verified' : 'not_configured',
+    warden: env.WARDEN_RETURN_PATH_URL && env.WARDEN_SERVICE_TOKEN && env.INFLUENCERS_PROVIDER_ID && env.GENESIS_NODE_ID ? 'configured_not_verified' : 'not_configured',
     river: 'receipt_dependency_via_warden',
     synnergyze: 'contract_required',
     presstech: 'disabled',
