@@ -5,8 +5,8 @@
   "type": "module",
   "scripts": {
     "dev": "python3 -m http.server 4173",
-    "check": "node --check src/main.js && node --check src/data.js && node --check src/influencers.js && node --check src/influencers.test.js && node --check sw.js && node --check runtime/influencer-campaign-gateway.js && node --check runtime/influencer-campaign-gateway.test.js && node --check runtime/signed-warden-conformance.js && node --check runtime/signed-warden-conformance.test.js",
+    "check": "node --check src/main.js && node --check src/data.js && node --check src/influencers.js && node --check src/influencers.test.js && node --check sw.js && node --check runtime/influencer-campaign-gateway.js && node --check runtime/influencer-campaign-gateway.test.js && node --check runtime/signed-warden-conformance.js && node --check runtime/signed-warden-conformance.test.js && node --check runtime/durable-campaign-ledger.js && node --check runtime/verified-river-receipt.js && node --check runtime/durable-evidence.test.js && node --check runtime/durable-warden-link.test.js",
     "build": "node scripts/build.mjs",
-    "test": "node --test src/influencers.test.js runtime/influencer-campaign-gateway.test.js runtime/signed-warden-conformance.test.js"
+    "test": "node --experimental-sqlite --test src/influencers.test.js runtime/influencer-campaign-gateway.test.js runtime/signed-warden-conformance.test.js runtime/durable-evidence.test.js runtime/durable-warden-link.test.js"
   }
 }
