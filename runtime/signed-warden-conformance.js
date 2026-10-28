@@ -43,11 +43,11 @@ function parseTimestamp(value) {
 }
 
 export function createSignedWardenConformanceAdapter({
-  decisionSource, trustedKeys, isRevoked, audience
+  decisionSource, trustedKeys, isRevoked, checkNonceBinding, audience
 }) {
   if (!decisionSource || typeof decisionSource.decide !== 'function' ||
       !record(trustedKeys) || typeof isRevoked !== 'function' ||
-      typeof audience !== 'string' || audience.length < 3) {
+      typeof checkNonceBinding !== 'function' || typeof audience !== 'string' || audience.length < 3) {
     throw new TypeError('signed_warden_adapter_not_configured');
   }
 
@@ -118,6 +118,19 @@ export function createSignedWardenConformanceAdapter({
           at
         });
         if (revoked !== false) return deny;
+
+        // The backend must atomically bind an issuer nonce to exactly one
+        // request and decision; same-bound rechecks are idempotent. This
+        // adapter refuses to operate without the authoritative callback.
+        const nonceBound = await checkNonceBinding({
+          issuer: claims.issuer,
+          nonce: claims.nonce,
+          requestRef: claims.requestRef,
+          decisionRef: claims.decisionRef,
+          validUntil: claims.validUntil,
+          at
+        });
+        if (nonceBound !== true) return deny;
 
         return Object.freeze({
           synthetic: true, verified: true, issuerAuthenticated: true,
