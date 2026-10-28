@@ -30,6 +30,8 @@ function jwt(override = {}, key = privateKey) {
     sub: 'user-001',
     digitalme_actor_id: 'ACTOR:001',
     principal_ref: 'digitalme:ACTOR:001',
+    acting_capacity_ref: 'CAPACITY:INFLUENCER',
+    represented_organization_ref: 'ORG:BRAND:001',
     exp: Math.floor((now + 120000) / 1000),
     nbf: Math.floor((now - 10000) / 1000),
     ...override
@@ -49,7 +51,10 @@ function fixture(overrides = {}) {
       return json({
         permitted: true, status: 'active', actor_id: 'ACTOR:001',
         relationship_id: context.relationship_id, campaign_id: context.campaign_id,
-        issuer_ref: 'BNR:REGISTRY:001', valid_until: validUntil,
+        issuer_ref: 'BNR:REGISTRY:001', membership_ref: 'BNR:MEMBER:001',
+        node_id: 'ALPHA-NODE-001', acting_capacity_ref: 'CAPACITY:INFLUENCER',
+        represented_organization_ref: 'ORG:BRAND:001', representation_verified: true,
+        capabilities: ['influencers.campaign.observe'], valid_until: validUntil,
         ...overrides.bnr
       });
     }
@@ -66,6 +71,16 @@ function fixture(overrides = {}) {
     if (url.endsWith('/decisions/WARDEN%3A001')) {
       return json({
         decision_id: 'WARDEN:001', outcome: 'ALLOW', river_receipt_id: 'RIVER:001',
+        capability: 'influencers.campaign.observe', principal_ref: 'digitalme:ACTOR:001',
+        work_ref: 'CMP:001', valid_until: validUntil,
+        scope: {
+          execution_plane: 'ALPHA_LOCAL', external_effects: false,
+          node_id: 'ALPHA-NODE-001', actor_id: 'ACTOR:001',
+          acting_capacity_ref: 'CAPACITY:INFLUENCER',
+          represented_organization_ref: 'ORG:BRAND:001',
+          membership_ref: 'BNR:MEMBER:001',
+          relationship_id: 'REL:001', campaign_id: 'CMP:001'
+        },
         ...overrides.river
       });
     }
@@ -78,7 +93,8 @@ const verifies = err => err instanceof GateError;
 test('valid signed DigitalMe identity resolves only actor and principal; no authority', async () => {
   const { fakeFetch } = fixture();
   const identity = await verifyDigitalMeSession(jwt(), { env, fetchImpl: fakeFetch });
-  assert.deepEqual(identity, { subject: 'user-001', actor_id: 'ACTOR:001', principal_ref: 'digitalme:ACTOR:001' });
+  assert.deepEqual(identity, { subject: 'user-001', actor_id: 'ACTOR:001', principal_ref: 'digitalme:ACTOR:001',
+    acting_capacity_ref: 'CAPACITY:INFLUENCER', represented_organization_ref: 'ORG:BRAND:001' });
 });
 
 test('untrusted, expired or wrong-audience sessions are denied', async () => {
@@ -88,7 +104,9 @@ test('untrusted, expired or wrong-audience sessions are denied', async () => {
     jwt({}, otherPrivateKey),
     jwt({ exp: Math.floor((now - 1000) / 1000) }),
     jwt({ aud: 'different-audience' }),
-    jwt({ digitalme_actor_id: null })
+    jwt({ digitalme_actor_id: null }),
+    jwt({ acting_capacity_ref: null }),
+    jwt({ represented_organization_ref: null })
   ]) {
     await assert.rejects(verifyDigitalMeSession(token, { env, fetchImpl: fakeFetch }), verifies);
   }
@@ -128,6 +146,8 @@ test('unconfigured, synthetic or forged work cannot request authorization', asyn
 test('BNR mismatch or Warden admission failure stops before authorization', async () => {
   for (const override of [
     { bnr: { permitted: false } },
+    { bnr: { representation_verified: false } },
+    { bnr: { node_id: 'OTHER-NODE' } },
     { bnr: { campaign_id: 'CMP:OTHER' } },
     { bnr: { valid_until: '2020-01-01T00:00:00Z' } },
     { admissions: { admissions: [] } },
@@ -144,7 +164,10 @@ test('Warden DENY and missing or mismatched River receipt are denied', async () 
     { warden: { outcome: 'DENY' } },
     { river: { river_receipt_id: null } },
     { river: { decision_id: 'WARDEN:OTHER' } },
-    { river: { outcome: 'DENY' } }
+    { river: { outcome: 'DENY' } },
+    { river: { valid_until: '2020-01-01T00:00:00Z' } },
+    { river: { principal_ref: 'digitalme:OTHER' } },
+    { river: { scope: { node_id: 'ALPHA-NODE-001', external_effects: false } } }
   ]) {
     const { fakeFetch } = fixture(override);
     await assert.rejects(authorizeObservation({ sessionJwt: jwt(), body: context, env, fetchImpl: fakeFetch }), verifies);
