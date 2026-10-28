@@ -70,8 +70,8 @@ function home() {
       <p>Each Door is a governed entry into a creator, product, service or mission network.</p>
     </section>
     <section class="assurances">
-      <article class="glass">${icon('shield')}<strong>Verified</strong><span>Warden checked</span></article>
-      <article class="glass">${icon('river')}<strong>Transparent</strong><span>RiverOS evidence</span></article>
+      <article class="glass">${icon('shield')}<strong>Preview</strong><span>Mock Warden only</span></article>
+      <article class="glass">${icon('river')}<strong>Sample events</strong><span>No live RiverOS receipt</span></article>
       <article class="glass">${icon('spark')}<strong>Yours to build</strong><span>Participate and grow</span></article>
     </section>
     <div class="section-title"><div><small>EXPLORE</small><h2>Active Doors</h2></div><button>Filters</button></div>
@@ -107,7 +107,7 @@ function doorScreen() {
       <div class="phase-row"><span class="${['verifying','opening','open'].includes(state.phase) ? 'done' : 'active'}">1 Touch</span><span class="${['opening','open'].includes(state.phase) ? 'done' : state.phase === 'verifying' ? 'active' : ''}">2 Verify</span><span class="${state.phase === 'open' ? 'done' : state.phase === 'opening' ? 'active' : ''}">3 Open</span></div>
       <div class="progress"><i style="width:${state.phase === 'open' ? 100 : state.phase === 'opening' ? 74 : state.phase === 'verifying' ? 42 : state.hold}%"></i></div>
       ${state.phase === 'open'
-        ? `<h2>Access verified</h2><p>Warden confirmed your DigitalMe authority. The threshold is open.</p><button class="primary enter" data-route="arc">Enter ${d.name}</button>`
+        ? `<h2>Demo threshold open</h2><p>Mock Warden approved this preview. No live identity or access permission was granted.</p><button class="primary enter" data-route="arc">Enter ${d.name}</button>`
         : `<h2>${state.phase === 'verifying' ? 'Warden is verifying' : state.phase === 'opening' ? 'Opening the threshold' : 'Touch and hold to open'}</h2><p>${state.phase === 'idle' ? 'Hold the seal. Consent and authority are checked before the Door opens.' : 'Identity, consent, role and active Arc context are being evaluated.'}</p><button class="hold-button" data-hold aria-label="Touch and hold the seal">${icon('lock')}<span>Hold to verify</span></button>`}
     </section>
   `, 'doors', true);
@@ -115,25 +115,25 @@ function doorScreen() {
 function arcScreen() {
   const d = state.door;
   return shell(`
-    <section class="arc-hero glass"><div><small>YOU HAVE ENTERED</small><h1>${d.name}</h1><p>${d.eyebrow}</p></div><b>Warden verified</b></section>
+    <section class="arc-hero glass"><div><small>YOU HAVE ENTERED</small><h1>${d.name}</h1><p>${d.eyebrow}</p></div><b>Demo only</b></section>
     <section class="metrics"><article class="glass"><strong>${d.members}</strong><span>DigitalMe Actors</span></article><article class="glass"><strong>${d.doors}</strong><span>Connected Doors</span></article><article class="glass"><strong>${d.progress}%</strong><span>Mission progress</span></article></section>
     <div class="section-title"><div><small>INSIDE THE DOOR</small><h2>Arc workspace</h2></div></div>
     <section class="module-grid">${modules.map(([id,title,desc]) => `<button class="module glass" data-module="${id}"><span>${icon(id === 'actors' ? 'network' : id === 'tasks' ? 'tasks' : id === 'payments' ? 'spark' : 'door')}</span><div><strong>${title}</strong><small>${desc}</small></div>${icon('chevron',18)}</button>`).join('')}</section>
-    <div class="section-title"><div><small>RIVER</small><h2>Recent evidence</h2></div></div>
+    <div class="section-title"><div><small>DEMO</small><h2>Sample activity, not River receipts</h2></div></div>
     <section class="feed glass">${activity.map(([title,desc,time]) => `<article><span>${icon('river',18)}</span><div><strong>${title}</strong><p>${desc}</p></div><time>${time}</time></article>`).join('')}</section>
     <button class="participate" data-route="participate">Participate in this Arc ${icon('chevron',18)}</button>
   `, 'network');
 }
 function participate() {
   const roles = [['Contributor','Create, complete tasks and add evidence'],['Partner','Provide capabilities, services or reach'],['Investor','Support a governed mission or product'],['Observer','Follow progress without operating authority']];
-  return shell(`<section class="hero compact"><p class="kicker">PARTICIPATION ROUTE</p><h1>Choose your role.</h1><p>Warden will attach the selected role to your DigitalMe Actor and the active Arc context.</p></section>
+  return shell(`<section class="hero compact"><p class="kicker">PARTICIPATION ROUTE</p><h1>Choose your role.</h1><p>A live Warden would require authorized DigitalMe identity and scope. This preview does not grant a role.</p></section>
     <section class="role-list">${roles.map(([r,d]) => `<button class="role glass ${state.role === r ? 'selected' : ''}" data-role="${r}"><span>${icon(state.role === r ? 'check' : 'profile')}</span><div><strong>${r}</strong><small>${d}</small></div></button>`).join('')}</section>
-    <section class="consent glass"><div>${icon('shield')}<div><strong>Consent boundary</strong><p>This action records your selected role, authority context and timestamp. It does not enable covert device access.</p></div></div><label><input type="checkbox" checked/> Record participation evidence in RiverOS</label></section>
-    <button class="participate" data-confirm>Confirm ${state.role} role</button>
+    <section class="consent glass"><div>${icon('shield')}<div><strong>Consent boundary</strong><p>This action records your selected role, authority context and timestamp. It does not enable covert device access.</p></div></div><label><input type="checkbox" checked/> Record local demonstration event only</label></section>
+    <button class="participate" data-confirm>Preview ${state.role} role</button>
   `, 'network');
 }
 function success() {
-  return shell(`<section class="success"><div>${icon('check',58)}</div><small>RIVEROS EVENT RECORDED</small><h1>Welcome through the Door.</h1><p>Your ${state.role} role is active inside ${state.door.name}. The next action is now visible in the Arc workspace.</p><button class="primary" data-route="arc">Open workspace</button></section>`, 'network');
+  return shell(`<section class="success"><div>${icon('check',58)}</div><small>LOCAL DEMO EVENT</small><h1>Welcome through the Door.</h1><p>Your ${state.role} preview role is visible in the demo workspace. No live role or Warden authority was issued.</p><button class="primary" data-route="arc">Open workspace</button></section>`, 'network');
 }
 function influencers() {
   return shell(renderInfluencersDoor(state.influencerCampaignId, {
