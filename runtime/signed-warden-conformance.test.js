@@ -68,13 +68,26 @@ function makeSignedFixture(overrides = {}) {
     ...(overrides.decision || {})
   };
   let revocationChecks = 0;
+  let nonceChecks = 0;
+  const nonces = new Map();
   const adapter = createSignedWardenConformanceAdapter({
     decisionSource: { async decide() { return structuredClone(decision); } },
     trustedKeys: { [keyId]: { issuer, publicKey } },
     isRevoked: async () => { revocationChecks++; return Object.hasOwn(overrides, 'revoked') ? overrides.revoked : false; },
+    checkNonceBinding: async ({ issuer, nonce, requestRef, decisionRef }) => {
+      nonceChecks++;
+      if (overrides.nonceError) throw new Error('nonce_store_unavailable');
+      if (Object.hasOwn(overrides, 'nonceAllowed')) return overrides.nonceAllowed;
+      const key = issuer + ':' + nonce;
+      const binding = requestRef + ':' + decisionRef;
+      const existing = nonces.get(key);
+      if (existing && existing !== binding) return false;
+      nonces.set(key, binding);
+      return true;
+    },
     audience: overrides.audience ?? audience
   });
-  return { decision, adapter, claims, getRevocationChecks: () => revocationChecks, pair };
+  return { decision, adapter, claims, getRevocationChecks: () => revocationChecks, getNonceChecks: () => nonceChecks, pair };
 }
 
 test('Ed25519 verifies exact audience, issuer, scope and short expiry', async () => {
@@ -85,6 +98,7 @@ test('Ed25519 verifies exact audience, issuer, scope and short expiry', async ()
     synthetic: true, verified: true, issuerAuthenticated: true, scopeBound: true, revoked: false
   });
   assert.equal(f.getRevocationChecks(), 1);
+  assert.equal(f.getNonceChecks(), 1);
 });
 
 test('forged signatures are rejected without consulting the revocation source', async () => {
@@ -163,6 +177,7 @@ test('revoke checks are fail-closed on missing, true and thrown responses', asyn
       }
     },
     isRevoked: async () => { throw new Error('revocation_service_unavailable'); },
+    checkNonceBinding: async () => true,
     audience: 'VSR:INFLUENCERS:LAB'
   });
   assert.equal((await adapter.verifyDecision({decision:f.decision,intent:ctx,at:NOW})).verified,false);
@@ -225,4 +240,32 @@ test('integration: signed Warden adapter permits synthetic River and Synnergyze 
   assert.equal(calls.execute,1);
   assert.equal(calls.reserve,1);
   assert.equal(f.getRevocationChecks(),2);
+  assert.equal(f.getNonceChecks(),2);
+});
+
+
+test('nonce issuer binding rejects a new signed request attempting nonce reuse', async () => {
+  const f = makeSignedFixture();
+  const first = await f.adapter.verifyDecision({ decision:f.decision, intent:ctx, at:NOW });
+  assert.equal(first.verified,true);
+  // Same signed grant can be reverified without consuming another nonce.
+  const repeated = await f.adapter.verifyDecision({ decision:f.decision, intent:ctx, at:NOW });
+  assert.equal(repeated.verified,true);
+  const other = structuredClone(f.decision);
+  const altered = { ...ctx, requestRef:'REQ:INFLUENCER:002' };
+  other.requestRef = altered.requestRef;
+  other.authorizationEnvelope.claims.requestRef = altered.requestRef;
+  other.authorizationEnvelope.signature =
+    sign(null,signingInput(other.authorizationEnvelope.claims),f.pair.privateKey)
+      .toString('base64url');
+  const collision = await f.adapter.verifyDecision({decision:other,intent:altered,at:NOW});
+  assert.equal(collision.verified,false);
+});
+
+test('nonce store errors, false and unknown states fail closed', async () => {
+  for(const options of [{nonceError:true},{nonceAllowed:false},{nonceAllowed:undefined}]) {
+    const f = makeSignedFixture(options);
+    const r=await f.adapter.verifyDecision({decision:f.decision,intent:ctx,at:NOW});
+    assert.equal(r.verified,false);
+  }
 });
