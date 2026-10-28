@@ -71,7 +71,7 @@ function makeSignedFixture(overrides = {}) {
   const adapter = createSignedWardenConformanceAdapter({
     decisionSource: { async decide() { return structuredClone(decision); } },
     trustedKeys: { [keyId]: { issuer, publicKey } },
-    isRevoked: async () => { revocationChecks++; return overrides.revoked ?? false; },
+    isRevoked: async () => { revocationChecks++; return Object.hasOwn(overrides, 'revoked') ? overrides.revoked : false; },
     audience: overrides.audience ?? audience
   });
   return { decision, adapter, claims, getRevocationChecks: () => revocationChecks, pair };
@@ -148,11 +148,10 @@ test('expired, future-issued, excessively long and malformed timestamps fail', a
 });
 
 test('revoke checks are fail-closed on missing, true and thrown responses', async () => {
-  for(const revoked of [true, undefined]) {
+  for(const revoked of [true, undefined, null]) {
     const f = makeSignedFixture({ revoked });
     const result = await f.adapter.verifyDecision({decision:f.decision,intent:ctx,at:NOW});
-    // undefined override defaults to false only in this fixture; true checks denial.
-    assert.equal(result.verified,!revoked);
+    assert.equal(result.verified,false);
   }
   const f = makeSignedFixture();
   const adapter = createSignedWardenConformanceAdapter({
