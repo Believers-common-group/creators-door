@@ -33,5 +33,14 @@ jobs:
         uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: '22'
+      - name: Verify test-only adapter syntax
+        run: node --check runtime/genesis-baseline-contract.test.js
       - name: Verify baseline fixture scope and fail-closed consumer admission
         run: node --test runtime/genesis-baseline-contract.test.js
+      - name: Build static Creators Door and ensure fixtures are not published
+        run: |
+          npm run build
+          test -f dist/index.html
+          test ! -e dist/_synthetic_reference
+          test ! -e dist/runtime/genesis-baseline-contract.test.js
+          test ! -e dist/runtime/influencer-campaign-gateway.js
